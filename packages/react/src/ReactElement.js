@@ -45,7 +45,7 @@ function hasValidKey(config) {
   }
   return config.key !== undefined;
 }
-// 锁定key setter 和 getter
+
 function defineKeyPropWarningGetter(props, displayName) {
   const warnAboutAccessingKey = function() {
     if (!specialPropKeyWarningShown) {
@@ -66,7 +66,7 @@ function defineKeyPropWarningGetter(props, displayName) {
     configurable: true,
   });
 }
-// 锁定ref setter 和 getter
+
 function defineRefPropWarningGetter(props, displayName) {
   const warnAboutAccessingRef = function() {
     if (!specialPropRefWarningShown) {
@@ -110,25 +110,30 @@ function defineRefPropWarningGetter(props, displayName) {
  */
 const ReactElement = function(type, key, ref, self, source, owner, props) {
   const element = {
-    // $$typeof将其标识为一个React元素
+    // This tag allows us to uniquely identify this as a React Element
     $$typeof: REACT_ELEMENT_TYPE,
 
-    // ReactElement的内置属性
+    // Built-in properties that belong on the element
     type: type,
     key: key,
     ref: ref,
     props: props,
 
-    // 创建此元素的组件。
+    // Record the component responsible for creating this element.
     _owner: owner,
   };
-  //为了利于测试，在开发环境下忽略这些属性（不可枚举），并且冻结props与element
+
   if (__DEV__) {
-    // The validation flag is currently mutative. We put it on an external backing store so that we can freeze the whole object.
-    // This can be replaced with a WeakMap once they are implemented in commonly used development environments.
+    // The validation flag is currently mutative. We put it on
+    // an external backing store so that we can freeze the whole object.
+    // This can be replaced with a WeakMap once they are implemented in
+    // commonly used development environments.
     element._store = {};
 
-    // To make comparing ReactElements easier for testing purposes, we make the validation flag non-enumerable (where possible, which should include every environment we run tests in), so the test framework ignores it.
+    // To make comparing ReactElements easier for testing purposes, we make
+    // the validation flag non-enumerable (where possible, which should
+    // include every environment we run tests in), so the test framework
+    // ignores it.
     Object.defineProperty(element._store, 'validated', {
       configurable: false,
       enumerable: false,
@@ -174,8 +179,12 @@ export function jsx(type, config, maybeKey) {
   let key = null;
   let ref = null;
 
-  // Currently, key can be spread in as a prop. This causes a potential issue if key is also explicitly declared (ie. <div {...props} key="Hi" /> or <div key="Hi" {...props} /> ). We want to deprecate key spread,
-  // but as an intermediary step, we will use jsxDEV for everything except <div {...props} key="Hi" />, because we aren't currently able to tell if  key is explicitly declared to be undefined or not.
+  // Currently, key can be spread in as a prop. This causes a potential
+  // issue if key is also explicitly declared (ie. <div {...props} key="Hi" />
+  // or <div key="Hi" {...props} /> ). We want to deprecate key spread,
+  // but as an intermediary step, we will use jsxDEV for everything except
+  // <div {...props} key="Hi" />, because we aren't currently able to tell if
+  // key is explicitly declared to be undefined or not.
   if (maybeKey !== undefined) {
     key = '' + maybeKey;
   }
@@ -188,9 +197,9 @@ export function jsx(type, config, maybeKey) {
     ref = config.ref;
   }
 
+  // Remaining properties are added to a new props object
   for (propName in config) {
     if (
-      // 忽略原型链上的属性，并且抽离key和ref属性
       hasOwnProperty.call(config, propName) &&
       !RESERVED_PROPS.hasOwnProperty(propName)
     ) {
@@ -198,7 +207,7 @@ export function jsx(type, config, maybeKey) {
     }
   }
 
-  // 申明 defaultProps
+  // Resolve default props
   if (type && type.defaultProps) {
     const defaultProps = type.defaultProps;
     for (propName in defaultProps) {
@@ -234,8 +243,12 @@ export function jsxDEV(type, config, maybeKey, source, self) {
   let key = null;
   let ref = null;
 
-  // Currently, key can be spread in as a prop. This causes a potential issue if key is also explicitly declared (ie. <div {...props} key="Hi" /> or <div key="Hi" {...props} /> ). We want to deprecate key spread,
-  // but as an intermediary step, we will use jsxDEV for everything except <div {...props} key="Hi" />, because we aren't currently able to tell if key is explicitly declared to be undefined or not.
+  // Currently, key can be spread in as a prop. This causes a potential
+  // issue if key is also explicitly declared (ie. <div {...props} key="Hi" />
+  // or <div key="Hi" {...props} /> ). We want to deprecate key spread,
+  // but as an intermediary step, we will use jsxDEV for everything except
+  // <div {...props} key="Hi" />, because we aren't currently able to tell if
+  // key is explicitly declared to be undefined or not.
   if (maybeKey !== undefined) {
     key = '' + maybeKey;
   }
@@ -299,6 +312,7 @@ export function jsxDEV(type, config, maybeKey, source, self) {
 export function createElement(type, config, children) {
   let propName;
 
+  // Reserved names are extracted
   const props = {};
 
   let key = null;
@@ -307,20 +321,18 @@ export function createElement(type, config, children) {
   let source = null;
 
   if (config != null) {
-    if (hasValidRef(config)) {// 查找config内是否存在合理的ref
+    if (hasValidRef(config)) {
       ref = config.ref;
     }
-    if (hasValidKey(config)) {// 查找config内是否存在合理的key
+    if (hasValidKey(config)) {
       key = '' + config.key;
     }
 
     self = config.__self === undefined ? null : config.__self;
     source = config.__source === undefined ? null : config.__source;
-    // 将剩余属性添加到新的props对象中
-    // 这也就是为什么<Component key={Math.random()}/>子组件中为什么找不到key/ref/__self/__source属性的原因
+    // Remaining properties are added to a new props object
     for (propName in config) {
       if (
-        // 忽略原型链上的属性，并且抽离key/ref/__self/__source属性
         hasOwnProperty.call(config, propName) &&
         !RESERVED_PROPS.hasOwnProperty(propName)
       ) {
@@ -329,10 +341,9 @@ export function createElement(type, config, children) {
     }
   }
 
-  // children参数可以不止一个，除去前两个参数，其他的都是children
+  // Children can be more than one argument, and those are transferred onto
+  // the newly allocated props object.
   const childrenLength = arguments.length - 2;
-
-  // 对children做格式处理。一个为对象，多个则为Array
   if (childrenLength === 1) {
     props.children = children;
   } else if (childrenLength > 1) {
@@ -348,8 +359,7 @@ export function createElement(type, config, children) {
     props.children = childArray;
   }
 
-  // 解析defaultProps，定义组件的默认Props属性
-  // Com.defaultProps = { msg:'default' }
+  // Resolve default props
   if (type && type.defaultProps) {
     const defaultProps = type.defaultProps;
     for (propName in defaultProps) {
@@ -358,11 +368,12 @@ export function createElement(type, config, children) {
       }
     }
   }
-  // 在开发环境下，锁定props上 key与 ref 的getter，不予获取
   if (__DEV__) {
     if (key || ref) {
-      const displayName = typeof type === 'function'
-          ? type.displayName || type.name || 'Unknown' : type;
+      const displayName =
+        typeof type === 'function'
+          ? type.displayName || type.name || 'Unknown'
+          : type;
       if (key) {
         defineKeyPropWarningGetter(props, displayName);
       }
@@ -371,7 +382,6 @@ export function createElement(type, config, children) {
       }
     }
   }
-  // 最后转化成React元素
   return ReactElement(
     type,
     key,
@@ -417,7 +427,6 @@ export function cloneAndReplaceKey(oldElement, newKey) {
  * See https://reactjs.org/docs/react-api.html#cloneelement
  */
 export function cloneElement(element, config, children) {
-  // 判断有效的ReactElement
   invariant(
     !(element === null || element === undefined),
     'React.cloneElement(...): The argument must be a React element, but you passed %s.',
@@ -426,21 +435,25 @@ export function cloneElement(element, config, children) {
 
   let propName;
 
-  // copy原始 props
+  // Original props are copied
   const props = Object.assign({}, element.props);
 
-  // 提取保留key & ref
+  // Reserved names are extracted
   let key = element.key;
   let ref = element.ref;
-  // 为了追踪与定位，继承被clone的Element这三个属性
+  // Self is preserved since the owner is preserved.
   const self = element._self;
+  // Source is preserved since cloneElement is unlikely to be targeted by a
+  // transpiler, and the original source is probably a better indicator of the
+  // true owner.
   const source = element._source;
+
+  // Owner will be preserved, unless ref is overridden
   let owner = element._owner;
 
   if (config != null) {
-    // 这里的处理和createElement差不多
-    // unique ，ref 和 key 可以自定义覆盖
     if (hasValidRef(config)) {
+      // Silently steal the ref from the parent.
       ref = config.ref;
       owner = ReactCurrentOwner.current;
     }
@@ -448,7 +461,7 @@ export function cloneElement(element, config, children) {
       key = '' + config.key;
     }
 
-    // 其他属性覆盖current props
+    // Remaining properties override existing props
     let defaultProps;
     if (element.type && element.type.defaultProps) {
       defaultProps = element.type.defaultProps;
@@ -467,7 +480,9 @@ export function cloneElement(element, config, children) {
       }
     }
   }
-  // 剩余的与 createElement 一样
+
+  // Children can be more than one argument, and those are transferred onto
+  // the newly allocated props object.
   const childrenLength = arguments.length - 2;
   if (childrenLength === 1) {
     props.children = children;

@@ -61,7 +61,7 @@ import getComponentName from 'shared/getComponentName';
 import invariant from 'shared/invariant';
 import lowPriorityWarningWithoutStack from 'shared/lowPriorityWarningWithoutStack';
 import warningWithoutStack from 'shared/warningWithoutStack';
-import {enableStableConcurrentModeAPIs} from 'shared/ReactFeatureFlags';
+import {exposeConcurrentModeAPIs} from 'shared/ReactFeatureFlags';
 
 import {
   getInstanceFromNode,
@@ -209,7 +209,7 @@ function createRootImpl(
   return root;
 }
 
-function ReactSyncRoot(
+function ReactBlockingRoot(
   container: DOMContainer,
   tag: RootTag,
   options: void | RootOptions,
@@ -221,7 +221,7 @@ function ReactRoot(container: DOMContainer, options: void | RootOptions) {
   this._internalRoot = createRootImpl(container, ConcurrentRoot, options);
 }
 
-ReactRoot.prototype.render = ReactSyncRoot.prototype.render = function(
+ReactRoot.prototype.render = ReactBlockingRoot.prototype.render = function(
   children: ReactNodeList,
   callback: ?() => mixed,
 ): void {
@@ -233,7 +233,7 @@ ReactRoot.prototype.render = ReactSyncRoot.prototype.render = function(
   updateContainer(children, root, null, callback);
 };
 
-ReactRoot.prototype.unmount = ReactSyncRoot.prototype.unmount = function(
+ReactRoot.prototype.unmount = ReactBlockingRoot.prototype.unmount = function(
   callback: ?() => mixed,
 ): void {
   const root = this._internalRoot;
@@ -334,7 +334,7 @@ function legacyCreateRootFromDOMContainer(
   }
 
   // Legacy roots are not batched.
-  return new ReactSyncRoot(
+  return new ReactBlockingRoot(
     container,
     LegacyRoot,
     shouldHydrate
@@ -451,9 +451,8 @@ const ReactDOM: Object = {
       warningWithoutStack(
         !container._reactHasBeenPassedToCreateRootDEV,
         'You are calling ReactDOM.hydrate() on a container that was previously ' +
-          'passed to ReactDOM.%s(). This is not supported. ' +
+          'passed to ReactDOM.createRoot(). This is not supported. ' +
           'Did you mean to call createRoot(container, {hydrate: true}).render(element)?',
-        enableStableConcurrentModeAPIs ? 'createRoot' : 'unstable_createRoot',
       );
     }
     // TODO: throw or warn if we couldn't hydrate?
@@ -479,9 +478,8 @@ const ReactDOM: Object = {
       warningWithoutStack(
         !container._reactHasBeenPassedToCreateRootDEV,
         'You are calling ReactDOM.render() on a container that was previously ' +
-          'passed to ReactDOM.%s(). This is not supported. ' +
+          'passed to ReactDOM.createRoot(). This is not supported. ' +
           'Did you mean to call root.render(element)?',
-        enableStableConcurrentModeAPIs ? 'createRoot' : 'unstable_createRoot',
       );
     }
     return legacyRenderSubtreeIntoContainer(
@@ -526,8 +524,7 @@ const ReactDOM: Object = {
       warningWithoutStack(
         !container._reactHasBeenPassedToCreateRootDEV,
         'You are calling ReactDOM.unmountComponentAtNode() on a container that was previously ' +
-          'passed to ReactDOM.%s(). This is not supported. Did you mean to call root.unmount()?',
-        enableStableConcurrentModeAPIs ? 'createRoot' : 'unstable_createRoot',
+          'passed to ReactDOM.createRoot(). This is not supported. Did you mean to call root.unmount()?',
       );
     }
 
@@ -596,26 +593,7 @@ const ReactDOM: Object = {
 
   unstable_batchedUpdates: batchedUpdates,
 
-  // TODO remove this legacy method, unstable_discreteUpdates replaces it
-  unstable_interactiveUpdates: (fn, a, b, c) => {
-    flushDiscreteUpdates();
-    return discreteUpdates(fn, a, b, c);
-  },
-
-  unstable_discreteUpdates: discreteUpdates,
-  unstable_flushDiscreteUpdates: flushDiscreteUpdates,
-
   flushSync: flushSync,
-
-  unstable_createRoot: createRoot,
-  unstable_createSyncRoot: createSyncRoot,
-  unstable_flushControlled: flushControlled,
-
-  unstable_scheduleHydration(target: Node) {
-    if (target) {
-      queueExplicitHydrationTarget(target);
-    }
-  },
 
   __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED: {
     // Keep in sync with ReactDOMUnstableNativeDependencies.js
@@ -650,49 +628,50 @@ function createRoot(
   container: DOMContainer,
   options?: RootOptions,
 ): _ReactRoot {
-  const functionName = enableStableConcurrentModeAPIs
-    ? 'createRoot'
-    : 'unstable_createRoot';
   invariant(
     isValidContainer(container),
-    '%s(...): Target container is not a DOM element.',
-    functionName,
+    'createRoot(...): Target container is not a DOM element.',
   );
   warnIfReactDOMContainerInDEV(container);
   return new ReactRoot(container, options);
 }
 
-function createSyncRoot(
+function createBlockingRoot(
   container: DOMContainer,
   options?: RootOptions,
 ): _ReactRoot {
-  const functionName = enableStableConcurrentModeAPIs
-    ? 'createRoot'
-    : 'unstable_createRoot';
   invariant(
     isValidContainer(container),
-    '%s(...): Target container is not a DOM element.',
-    functionName,
+    'createRoot(...): Target container is not a DOM element.',
   );
   warnIfReactDOMContainerInDEV(container);
-  return new ReactSyncRoot(container, BatchedRoot, options);
+  return new ReactBlockingRoot(container, BatchedRoot, options);
 }
 
 function warnIfReactDOMContainerInDEV(container) {
   if (__DEV__) {
     warningWithoutStack(
       !container._reactRootContainer,
-      'You are calling ReactDOM.%s() on a container that was previously ' +
+      'You are calling ReactDOM.createRoot() on a container that was previously ' +
         'passed to ReactDOM.render(). This is not supported.',
-      enableStableConcurrentModeAPIs ? 'createRoot' : 'unstable_createRoot',
     );
     container._reactHasBeenPassedToCreateRootDEV = true;
   }
 }
 
-if (enableStableConcurrentModeAPIs) {
+if (exposeConcurrentModeAPIs) {
   ReactDOM.createRoot = createRoot;
-  ReactDOM.createSyncRoot = createSyncRoot;
+  ReactDOM.createBlockingRoot = createBlockingRoot;
+
+  ReactDOM.unstable_discreteUpdates = discreteUpdates;
+  ReactDOM.unstable_flushDiscreteUpdates = flushDiscreteUpdates;
+  ReactDOM.unstable_flushControlled = flushControlled;
+
+  ReactDOM.unstable_scheduleHydration = target => {
+    if (target) {
+      queueExplicitHydrationTarget(target);
+    }
+  };
 }
 
 const foundDevTools = injectIntoDevTools({

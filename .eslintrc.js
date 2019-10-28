@@ -14,12 +14,7 @@ module.exports = {
   // Stop ESLint from looking for a configuration file in parent folders
   root: true,
 
-  plugins: [
-    'jest',
-     'no-for-of-loops',
-      'react',
-      //  'react-internal'
-      ],
+  plugins: ['jest', 'no-for-of-loops', 'react', 'react-internal'],
 
   parser: 'babel-eslint',
   parserOptions: {
@@ -154,6 +149,7 @@ module.exports = {
     spyOnProd: true,
     __PROFILE__: true,
     __UMD__: true,
+    __EXPERIMENTAL__: true,
     trustedTypes: true,
   },
 };
